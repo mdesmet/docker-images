@@ -82,6 +82,12 @@ docker-tag = $(subst @,:,$(1))
 resolved-image-name = $(addprefix ghcr.io/trinodb/,$(1))
 
 #
+# Used for temporary storing multi arch images in builds
+#
+
+ci-image-name = $(addprefix localhost:5000/,$(1))
+
+#
 # Various variables that define targets need to be .PHONY so that Make
 # continues to build them if a file with a matching name somehow comes into
 # existence
@@ -194,7 +200,9 @@ $(LATEST_TAGS): %@latest: %/Dockerfile %-parent-check
 	@echo
 	@echo "Building [$@] image using buildkit"
 	@echo
-	cd $* && time $(SHELL) -c "( docker buildx build ${TARGET_PLATFORMS} --compress --add-host hadoop-master:127.0.0.2 ${BUILD_ARGS} $(DBFLAGS_$*) -t $(call docker-tag,$@) --label $(LABEL) . )"
+	cd $* && time $(SHELL) -c "( docker buildx build --compress --add-host hadoop-master:127.0.0.2 ${BUILD_ARGS} $(DBFLAGS_$*) -t http://0.0.0.0:5000/temp --label $(LABEL) --push . )"
+	docker tag http://0.0.0.0:5000/temp $(call docker-tag,$@)
+	docker rmi http://0.0.0.0:5000/temp
 	docker history $(call docker-tag,$@)
 
 $(VERSION_TAGS): %@$(VERSION): %@latest
